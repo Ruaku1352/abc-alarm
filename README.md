@@ -2,7 +2,7 @@
 
 AtCoder ABCのB問題(C問題に切り替え可)を出題し、ACするまで15分おきに鳴り続ける目覚ましPWAです。
 
-公開ページ: https://ruaku1352.github.io/abc-ararm/
+公開ページ: https://ruaku1352.github.io/abc-alarm/
 
 ## しくみ
 
