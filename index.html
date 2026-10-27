@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ABC目覚まし</title>
+<meta name="description" content="AtCoder ABCのB/C問題をACするまで15分おきに鳴る目覚まし">
+<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10151c" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ABC目覚まし">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: one centered column like a bedside clock face; the alarm session takes over the whole screen */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#17202b; --muted:#5d6977; --line:#d4dbe3;
+  --accent:#e2571e; --accent-ink:#ffffff; --ring-bg:#17202b; --ring-fg:#f6f3ee; --warn:#b4361b; --ok:#1f8a4c;
+  --display:"Chakra Petch","Courier New",monospace;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#10151c; --panel:#18202a; --fg:#e6ebf1; --muted:#93a0ae; --line:#2a3542;
+  --accent:#ff7a3d; --accent-ink:#1a0d06; --ring-bg:#05080c; --ring-fg:#f6f3ee; --warn:#ff9a7a; --ok:#4cc27e;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  -webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+.wrap{max-width:460px;margin:0 auto;padding-block:28px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:22px}
+.clock{text-align:center}
+.clock .now{font-family:var(--display);font-weight:700;font-size:clamp(64px,22vw,104px);line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.clock .sec{font-size:.35em;color:var(--muted);margin-left:.15em}
+.clock .date{color:var(--muted);font-size:13px;letter-spacing:.08em}
+.status{text-align:center;font-size:14px;color:var(--muted);min-height:1.6em}
+.status.armed{color:var(--accent);font-weight:700}
+.status.error{color:var(--warn);font-weight:700}
+.unlock{text-align:center;font-size:13px;color:var(--warn);font-weight:700}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:18px}
+.row{display:flex;flex-direction:column;gap:8px}
+label,.lbl{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+input[type=time]{font-family:var(--display);font-size:34px;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);width:100%;-webkit-appearance:none;appearance:none;min-height:60px}
+.panel input[type=text],.range input{font-family:var(--display);font-size:18px;width:100%;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font-family:var(--display);font-size:18px;font-weight:700;padding:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.range{display:flex;align-items:center;gap:8px}
+.range span{color:var(--muted)}
+.hint{font-size:12px;color:var(--muted)}
+.hint.ok{color:var(--ok);font-weight:700}
+.hint.warn{color:var(--warn);font-weight:700}
+.sound{display:flex;flex-direction:column;gap:10px}
+.sound-name{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.sound-btns{display:flex;flex-wrap:wrap;gap:8px}
+.vol{display:flex;align-items:center;gap:10px}
+.vol input{flex:1;min-width:0;accent-color:var(--accent)}
+.vol span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;width:3em;text-align:right}
+.msg{font-size:12px;color:var(--warn);min-height:1em}
+.btn{font-family:var(--body);font-weight:700;font-size:16px;padding:14px;border-radius:12px;border:0;cursor:pointer;text-align:center;display:inline-block}
+.btn.sm{font-size:14px;padding:8px 14px;border-radius:10px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.note{font-size:12px;color:var(--muted);line-height:1.7;margin:0}
+.install{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+
+/* alarm session */
+.ring{position:fixed;inset:0;z-index:20;background:var(--ring-bg);color:var(--ring-fg);overflow-y:auto;
+  padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.ring-inner{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.ring-main,.ring-done{display:flex;flex-direction:column;gap:18px}
+.phase{text-align:center;font-size:12px;letter-spacing:.2em;font-weight:700;color:var(--accent)}
+.ring .flash{font-family:var(--display);font-weight:700;font-size:clamp(56px,20vw,96px);text-align:center;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;animation:blink 1s steps(2) infinite}
+.ring[data-phase="snooze"] .flash{animation:none;color:var(--ring-fg)}
+.ring[data-phase="snooze"] .phase{color:#ffffffaa}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.ring .flash{animation:none}}
+.ring .lead{text-align:center;font-size:14px;opacity:.85;font-variant-numeric:tabular-nums}
+.ring .tap{text-align:center;font-weight:700;color:#ffb08a}
+.task{border:2px solid var(--accent);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.task .id{font-family:var(--display);font-weight:700;font-size:40px;letter-spacing:.03em}
+.task a{display:block;background:var(--accent);color:var(--accent-ink);font-weight:700;text-decoration:none;padding:14px;border-radius:12px;font-size:16px}
+.ring .seg{border-color:#ffffff33}
+.ring .seg button{color:#ffffffaa}
+.ring .seg button[aria-pressed="true"]{background:var(--ring-fg);color:var(--ring-bg)}
+.ac{border:1px solid #ffffff33;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ac-text{display:flex;flex-direction:column;min-width:0}
+.ac .lbl{color:#ffffffaa}
+.ac-status{font-size:14px;font-variant-numeric:tabular-nums}
+.ring .btn.ghost{color:var(--ring-fg);border-color:#ffffff44}
+.ring .stop{background:var(--ring-fg);color:var(--ring-bg)}
+.small{font-size:12px;opacity:.7;text-align:center}
+.done-mark{font-family:var(--display);font-weight:700;font-size:clamp(96px,32vw,150px);line-height:1;text-align:center;color:#4cc27e;margin-top:8vh}
+.done-msg{text-align:center;font-size:16px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="clock">
+    <div class="now" id="now">--:--<span class="sec">--</span></div>
+    <div class="date" id="date"></div>
+  </div>
+  <div class="status" id="status">アラーム未設定</div>
+  <div class="unlock" id="unlock" hidden>画面を一度タップしてください(音を有効にします)</div>
+
+  <div class="panel">
+    <div class="row">
+      <label for="time">起床時刻</label>
+      <input type="time" id="time" value="07:00">
+    </div>
+    <div class="row">
+      <label for="user">AtCoderユーザー名</label>
+      <input type="text" id="user" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="例: chokudai">
+      <div class="hint" id="userHint">ACの自動判定に使います</div>
+    </div>
+    <div class="row">
+      <span class="lbl">出題する問題</span>
+      <div class="seg" id="diffSeg">
+        <button type="button" data-d="b" aria-pressed="true">B問題</button>
+        <button type="button" data-d="c" aria-pressed="false">C問題</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">ABCの範囲</span>
+      <div class="range">
+        <input type="number" id="minC" min="42" value="126" inputmode="numeric" aria-label="最小の回">
+        <span>〜</span>
+        <input type="number" id="maxC" min="42" placeholder="最新" inputmode="numeric" aria-label="最大の回">
+      </div>
+      <div class="hint">上限が空欄なら最新の回まで出題します。ABC126以降はA〜Fの6問構成です。</div>
+    </div>
+    <div class="row">
+      <span class="lbl">アラーム音</span>
+      <div class="sound">
+        <div class="sound-name" id="soundName">標準のビープ音</div>
+        <div class="sound-btns">
+          <label class="btn ghost sm" for="file">MP3を選ぶ<input type="file" id="file" class="vh" accept=".mp3,audio/mpeg,audio/*"></label>
+          <button class="btn ghost sm" id="preview" type="button">試聴</button>
+          <button class="btn ghost sm" id="resetSound" type="button" hidden>標準に戻す</button>
+        </div>
+        <div class="vol">
+          <input type="range" id="vol" min="0" max="1" step="0.05" value="0.9" aria-label="音量">
+          <span id="volLabel">90%</span>
+        </div>
+        <div class="msg" id="soundMsg"></div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="arm" type="button">アラームをセット</button>
+      <button class="btn ghost" id="test" type="button">テスト</button>
+    </div>
+  </div>
+
+  <div class="install" id="install" hidden>
+    <button class="btn ghost" id="installBtn" type="button">ホーム画面にインストール</button>
+  </div>
+  <p class="note" id="iosHint" hidden>iPhoneでは、Safariの共有ボタンから「ホーム画面に追加」でアプリとして使えます。</p>
+
+  <p class="note">鳴ったら「止める」で音は止まりますが、出題された問題をACするまで15分おきに鳴り直します。ACはAtCoder Problemsのデータで自動判定します(反映まで数分かかります)。アプリは開いたまま、画面をつけておいてください。</p>
+</div>
+
+<div class="ring" id="ring" data-phase="ringing" hidden>
+  <div class="ring-inner">
+    <div class="ring-main" id="ringMain">
+      <div class="phase" id="phaseLabel">起きる時間です</div>
+      <div class="flash" id="ringTime">07:00</div>
+      <div class="lead" id="lead">ACするまで15分おきに鳴ります</div>
+      <div class="tap" id="tapHint" hidden>画面をタップすると音が鳴ります</div>
+      <div class="task">
+        <div class="id" id="taskId">ABC300 B</div>
+        <a id="taskLink" href="#" target="_blank" rel="noopener">問題を開く ↗</a>
+      </div>
+      <div class="seg" id="ringSeg">
+        <button type="button" data-d="b" aria-pressed="true">B問題</button>
+        <button type="button" data-d="c" aria-pressed="false">C問題</button>
+      </div>
+      <button class="btn ghost" id="reroll" type="button">別の回にする</button>
+      <div class="ac" id="acBox">
+        <div class="ac-text">
+          <span class="lbl">AC判定</span>
+          <span class="ac-status" id="acStatus">確認中…</span>
+        </div>
+        <button class="btn ghost sm" id="checkNow" type="button">今すぐ確認</button>
+      </div>
+      <button class="btn stop" id="stop" type="button">止める(15分後にまた鳴ります)</button>
+      <div class="small" id="ringNote">ACが反映されるまで数分かかります。解いたら待つだけで止まります。</div>
+    </div>
+    <div class="ring-done" id="ringDone" hidden>
+      <div class="done-mark">AC</div>
+      <div class="done-msg" id="doneMsg"></div>
+      <button class="btn stop" id="closeDone" type="button">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const API='https://kenkoooo.com/atcoder/atcoder-api/v3';
+  const SNOOZE_MS=15*60*1000, POLL_MS=60*1000;
+  const $=id=>document.getElementById(id);
+  const pad=n=>String(n).padStart(2,'0');
+  const hhmm=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+  const ls={
+    get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+    set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+    del(k){try{localStorage.removeItem(k)}catch(e){}}
+  };
+
+  /* ---------- IndexedDB (アラーム音の保存) ---------- */
+  function idbOpen(){
+    return new Promise((res,rej)=>{
+      const r=indexedDB.open('abc-alarm',1);
+      r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+    });
+  }
+  async function idb(mode,fn){
+    const db=await idbOpen();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('kv',mode); const req=fn(tx.objectStore('kv'));
+      tx.oncomplete=()=>res(req&&req.result); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error);
+    });
+  }
+  const idbGet=k=>idb('readonly',s=>s.get(k));
+  const idbSet=(k,v)=>idb('readwrite',s=>s.put(v,k));
+  const idbDel=k=>idb('readwrite',s=>s.delete(k));
+
+  /* ---------- 設定 ---------- */
+  let diff=ls.get('diff','b');
+  $('time').value=ls.get('time','07:00');
+  $('user').value=ls.get('user','');
+  $('minC').value=ls.get('minC','126');
+  $('maxC').value=ls.get('maxC','');
+  $('vol').value=ls.get('vol',0.9);
+  $('volLabel').textContent=Math.round($('vol').value*100)+'%';
+
+  function setDiff(d){
+    diff=d; ls.set('diff',d);
+    for(const b of document.querySelectorAll('[data-d]')) b.setAttribute('aria-pressed',String(b.dataset.d===d));
+  }
+  setDiff(diff);
+  for(const b of document.querySelectorAll('#diffSeg [data-d]')) b.addEventListener('click',()=>setDiff(b.dataset.d));
+  for(const b of document.querySelectorAll('#ringSeg [data-d]')) b.addEventListener('click',()=>{setDiff(b.dataset.d);showTask();checkSoon()});
+  ['time','minC','maxC'].forEach(id=>$(id).addEventListener('change',()=>ls.set(id,$(id).value)));
+
+  /* ---------- ユーザー名の確認 ---------- */
+  function setUserHint(text,cls){ $('userHint').textContent=text; $('userHint').className='hint'+(cls?' '+cls:''); }
+  async function checkUser(){
+    const u=$('user').value.trim(); ls.set('user',u);
+    if(!u){ setUserHint('ACの自動判定に使います'); return; }
+    if(!/^[A-Za-z0-9_]{3,16}$/.test(u)){ setUserHint('ユーザー名は半角英数字と_で3〜16文字です','warn'); return; }
+    setUserHint('確認中…');
+    try{
+      const r=await fetch(`${API}/user/submission_count?user=${encodeURIComponent(u)}&from_second=0&to_second=9999999999`);
+      if(!r.ok) throw new Error();
+      const j=await r.json();
+      if($('user').value.trim()!==u) return;
+      if(j.count>0) setUserHint(`提出 ${j.count}件を確認しました`,'ok');
+      else setUserHint('このユーザーの提出が見つかりません。名前を確認してください','warn');
+    }catch(e){ setUserHint('AtCoder Problemsに接続できませんでした','warn'); }
+  }
+  $('user').addEventListener('change',checkUser);
+  if($('user').value) checkUser();
+
+  /* ---------- 最新のABC ---------- */
+  const latestAbc=()=>{ const c=ls.get('latestAbc',null); return c?c.n:480; };
+  async function refreshLatest(){
+    const c=ls.get('latestAbc',null);
+    if(c && Date.now()-c.at<3*864e5) return;
+    try{
+      const r=await fetch('https://kenkoooo.com/atcoder/resources/contests.json');
+      const list=await r.json(); let n=0;
+      for(const x of list){ const m=/^abc(\d+)$/.exec(x.id); if(m) n=Math.max(n,+m[1]); }
+      if(n) ls.set('latestAbc',{n,at:Date.now()});
+    }catch(e){}
+  }
+
+  /* ---------- 音 ---------- */
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  let ctx=null, master=null, buffer=null, soundData=null, src=null, beepTimer=null, keepAlive=null, playing=false;
+
+  function ensureAudio(){
+    if(!ctx){
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+      ctx=new AC(); master=ctx.createGain(); master.gain.value=+$('vol').value; master.connect(ctx.destination);
+      ctx.addEventListener('statechange',updateUnlockHints);
+    }
+    if(ctx.state!=='running') ctx.resume().then(updateUnlockHints).catch(()=>{});
+    return ctx;
+  }
+  function decode(ab){
+    const c=ensureAudio();
+    return new Promise((res,rej)=>c.decodeAudioData(ab.slice(0),res,rej));
+  }
+  async function ensureBuffer(){
+    if(soundData && !buffer){ try{ buffer=await decode(soundData.data) }catch(e){ buffer=null } }
+  }
+  function beepBurst(){
+    if(!ctx) return;
+    const t=ctx.currentTime;
+    for(let i=0;i<4;i++){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square'; o.frequency.value=i%2?1320:990;
+      g.gain.setValueAtTime(0,t+i*0.16);
+      g.gain.linearRampToValueAtTime(0.3,t+i*0.16+0.01);
+      g.gain.linearRampToValueAtTime(0,t+i*0.16+0.12);
+      o.connect(g); g.connect(master);
+      o.start(t+i*0.16); o.stop(t+i*0.16+0.14);
+    }
+  }
+  async function startSound(){
+    if(!ensureAudio()) return;
+    stopSound(); playing=true;
+    await ensureBuffer();
+    if(!playing) return;
+    if(buffer){
+      src=ctx.createBufferSource(); src.buffer=buffer; src.loop=true; src.connect(master); src.start();
+    }else{
+      beepBurst(); beepTimer=setInterval(beepBurst,1000);
+    }
+  }
+  function stopSound(){
+    playing=false;
+    if(src){ try{src.stop()}catch(e){} try{src.disconnect()}catch(e){} src=null; }
+    clearInterval(beepTimer); beepTimer=null;
+  }
+  // セット中は無音を流し続け、端末に音声を止められないようにする
+  function startKeepAlive(){
+    if(!ctx||keepAlive) return;
+    const o=ctx.createOscillator(), g=ctx.createGain(); g.gain.value=0;
+    o.connect(g); g.connect(ctx.destination); o.start(); keepAlive=o;
+  }
+  function stopKeepAlive(){ if(keepAlive){ try{keepAlive.stop()}catch(e){} keepAlive=null; } }
+
+  let vibTimer=null;
+  function startVibe(){
+    clearInterval(vibTimer);
+    if(!navigator.vibrate) return;
+    const v=()=>{ try{navigator.vibrate([500,300,500])}catch(e){} };
+    v(); vibTimer=setInterval(v,2000);
+  }
+  function stopVibe(){ clearInterval(vibTimer); vibTimer=null; try{ navigator.vibrate&&navigator.vibrate(0) }catch(e){} }
+
+  $('vol').addEventListener('input',()=>{
+    const v=+$('vol').value; ls.set('vol',v);
+    $('volLabel').textContent=Math.round(v*100)+'%';
+    if(master) master.gain.value=v;
+  });
+
+  function renderSound(){
+    $('soundName').textContent=soundData?soundData.name:'標準のビープ音';
+    $('resetSound').hidden=!soundData;
+  }
+  idbGet('sound').then(v=>{ if(v&&v.data) soundData=v; renderSound(); }).catch(()=>renderSound());
+
+  $('file').addEventListener('change',async e=>{
+    const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+    endPreview();
+    $('soundMsg').textContent='読み込み中…';
+    let data,buf;
+    try{ data=await f.arrayBuffer(); buf=await decode(data); }
+    catch(err){ $('soundMsg').textContent='このファイルは再生できませんでした。別のMP3を選んでください。'; return; }
+    soundData={name:f.name,type:f.type,data}; buffer=buf; renderSound();
+    try{
+      await idbSet('sound',soundData);
+      $('soundMsg').textContent='';
+      try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+    }catch(err){
+      $('soundMsg').textContent='端末に保存できませんでした。アプリを開き直すと標準の音に戻ります。';
+    }
+  });
+  $('resetSound').addEventListener('click',()=>{
+    endPreview(); soundData=null; buffer=null; renderSound(); $('soundMsg').textContent='';
+    idbDel('sound').catch(()=>{});
+  });
+
+  let previewing=false, previewTimer=null;
+  $('preview').addEventListener('click',()=>{
+    ensureAudio();
+    if(previewing){ endPreview(); return; }
+    previewing=true; $('preview').textContent='停止';
+    startSound(); previewTimer=setTimeout(endPreview,8000);
+  });
+  function endPreview(){
+    if(!previewing) return;
+    previewing=false; clearTimeout(previewTimer); $('preview').textContent='試聴';
+    if(!(session && session.phase==='ringing')) stopSound();
+  }
+
+  /* ---------- 画面スリープ防止 ---------- */
+  let lock=null;
+  async function keepAwake(){
+    try{ if(navigator.wakeLock && !lock){ lock=await navigator.wakeLock.request('screen'); lock.addEventListener('release',()=>{lock=null}); } }catch(e){}
+  }
+  function releaseAwake(){ if(lock){ lock.release().catch(()=>{}); lock=null; } }
+
+  /* ---------- 通知 ---------- */
+  function requestNotify(){
+    try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission().catch(()=>{}); }catch(e){}
+  }
+  async function notify(title,body){
+    try{
+      if(!('Notification' in window) || Notification.permission!=='granted') return;
+      const opts={body,tag:'abc-alarm',renotify:true,requireInteraction:true,vibrate:[400,200,400],icon:'icon-192.png'};
+      const reg=navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if(reg) await reg.showNotification(title,opts); else new Notification(title,opts);
+    }catch(e){}
+  }
+
+  /* ---------- 出題 ---------- */
+  let contest=300;
+  const cid=()=>'abc'+String(contest).padStart(3,'0');
+  const taskLabel=()=>`ABC${String(contest).padStart(3,'0')} ${diff.toUpperCase()}`;
+  function pick(){
+    let a=parseInt($('minC').value,10)||126, b=parseInt($('maxC').value,10)||latestAbc();
+    a=Math.max(42,a); b=Math.max(42,b); if(b<a) [a,b]=[b,a];
+    contest=a+Math.floor(Math.random()*(b-a+1));
+  }
+  function showTask(){
+    $('taskId').textContent=taskLabel();
+    $('taskLink').href=`https://atcoder.jp/contests/${cid()}/tasks/${cid()}_${diff}`;
+    saveSession();
+  }
+  $('reroll').addEventListener('click',()=>{ pick(); showTask(); setAc('未検出'); });
+
+  /* ---------- セッション(鳴動〜スヌーズ〜AC) ---------- */
+  // session: {contest, startSec, phase:'ringing'|'snooze', nextAt, ringAt, test}
+  let session=ls.get('session',null), armedAt=ls.get('armedAt',null);
+  let lastCheck=0, checking=false;
+
+  function saveSession(){ if(session){ session.contest=contest; ls.set('session',session); } }
+  function setAc(t){ $('acStatus').textContent=t; }
+
+  function beginSession(test){
+    if(!test){ armedAt=null; ls.del('armedAt'); }
+    pick();
+    session={contest,startSec:Math.floor(Date.now()/1000),phase:'ringing',nextAt:null,ringAt:Date.now(),test:!!test};
+    lastCheck=0; setAc('確認中…');
+    ring();
+  }
+  function ring(){
+    session.phase='ringing'; session.nextAt=null; session.ringAt=Date.now(); saveSession();
+    renderSession();
+    startSound(); startVibe(); keepAwake(); startKeepAlive();
+    if(document.hidden) notify('起きる時間です',taskLabel()+' をACするまで鳴り続けます');
+  }
+  function snooze(){
+    stopSound(); stopVibe();
+    session.phase='snooze'; session.nextAt=Date.now()+SNOOZE_MS; saveSession();
+    renderSession(); tick();
+  }
+  function endSession(){
+    stopSound(); stopVibe();
+    session=null; ls.del('session');
+    if(!armedAt){ stopKeepAlive(); releaseAwake(); }
+    renderArmed();
+  }
+  function finish(hit){
+    const label=taskLabel();
+    endSession();
+    $('ringMain').hidden=true; $('ringDone').hidden=false;
+    const at=new Date(hit.epoch_second*1000);
+    $('doneMsg').textContent=`${label} のACを確認しました(${hhmm(at)} 提出)。おはようございます。`;
+    $('status').textContent='おはようございます。ACおめでとう';
+  }
+  function renderSession(){
+    if(!session) return;
+    const r=session.phase==='ringing';
+    $('ring').hidden=false; $('ringMain').hidden=false; $('ringDone').hidden=true;
+    $('ring').dataset.phase=session.phase;
+    $('phaseLabel').textContent=session.test?'テスト':(r?'起きる時間です':'スヌーズ中');
+    $('ringTime').textContent=hhmm(new Date(r?session.ringAt:session.nextAt));
+    if(r) $('lead').textContent=session.test?'テスト中です。下のボタンで終了できます':'ACするまで15分おきに鳴ります';
+    $('stop').hidden=!r;
+    $('stop').textContent=session.test?'テストを終了':'止める(15分後にまた鳴ります)';
+    $('acBox').hidden=!!session.test;
+    $('ringNote').hidden=!!session.test;
+    showTask(); updateUnlockHints();
+  }
+  $('stop').addEventListener('click',()=>{
+    if(!session) return;
+    if(session.test){ endSession(); $('ring').hidden=true; }
+    else snooze();
+  });
+  $('closeDone').addEventListener('click',()=>{ $('ring').hidden=true; $('ringDone').hidden=true; $('ringMain').hidden=false; });
+
+  /* ---------- AC判定 ---------- */
+  async function checkAC(){
+    if(!session||session.test||checking) return;
+    const u=ls.get('user','');
+    if(!u){ setAc('ユーザー名が未設定です'); lastCheck=Date.now(); return; }
+    checking=true; $('checkNow').disabled=true; setAc('確認中…');
+    const pid=`${cid()}_${diff}`, since=session.startSec;
+    try{
+      const r=await fetch(`${API}/user/submissions?user=${encodeURIComponent(u)}&from_second=${since}`,{cache:'no-store'});
+      if(!r.ok) throw new Error();
+      const list=await r.json();
+      const hit=Array.isArray(list)&&list.find(s=>s.problem_id===pid && s.result==='AC' && s.epoch_second>=since);
+      if(hit && session && `${cid()}_${diff}`===pid){ finish(hit); }
+      else setAc(`まだ見つかりません(${hhmm(new Date())} 確認)`);
+    }catch(e){
+      setAc(`接続できません(${hhmm(new Date())})`);
+    }finally{
+      checking=false; lastCheck=Date.now();
+      setTimeout(()=>{ $('checkNow').disabled=false; },5000);
+    }
+  }
+  function checkSoon(){ if(session && !session.test) lastCheck=Math.min(lastCheck,Date.now()-POLL_MS+3000); }
+  $('checkNow').addEventListener('click',()=>checkAC());
+
+  /* ---------- アラームのセット ---------- */
+  function nextTime(){
+    const [h,m]=$('time').value.split(':').map(Number);
+    const d=new Date(); d.setHours(h||0,m||0,0,0);
+    if(d<=new Date()) d.setDate(d.getDate()+1);
+    return d.getTime();
+  }
+  function renderArmed(){
+    $('arm').textContent=armedAt?'解除する':'アラームをセット';
+    $('status').classList.toggle('armed',!!armedAt);
+    $('status').classList.remove('error');
+    if(!armedAt) $('status').textContent='アラーム未設定';
+    updateUnlockHints();
+  }
+  function updateUnlockHints(){
+    const running=ctx && ctx.state==='running';
+    $('unlock').hidden=!(armedAt && !running);
+    $('tapHint').hidden=!(session && session.phase==='ringing' && !running);
+  }
+  function arm(){
+    ensureAudio();
+    if(!$('user').value.trim()){
+      $('status').textContent='AtCoderユーザー名を入力してください'; $('status').classList.add('error');
+      $('user').focus(); return;
+    }
+    armedAt=nextTime(); ls.set('armedAt',armedAt);
+    startKeepAlive(); keepAwake(); ensureBuffer(); requestNotify(); refreshLatest();
+    renderArmed(); tick();
+  }
+  function disarm(){
+    armedAt=null; ls.del('armedAt');
+    if(!session){ stopKeepAlive(); releaseAwake(); }
+    renderArmed();
+  }
+  $('arm').addEventListener('click',()=>{ armedAt?disarm():arm(); });
+  $('test').addEventListener('click',()=>{ ensureAudio(); endPreview(); if(!session) beginSession(true); });
+
+  // どこかをタップしたら音声を有効化(自動再生制限の解除)
+  document.addEventListener('pointerdown',()=>{
+    ensureAudio();
+    if(armedAt||session){ startKeepAlive(); keepAwake(); }
+  },{capture:true});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState!=='visible') return;
+    if(armedAt||session) keepAwake();
+    if(session && !session.test && Date.now()-lastCheck>10000) checkAC();
+    tick();
+  });
+
+  /* ---------- 時計 ---------- */
+  const wd='日月火水木金土';
+  function tick(){
+    const d=new Date(), now=d.getTime();
+    $('now').innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+'<span class="sec">'+pad(d.getSeconds())+'</span>';
+    $('date').textContent=`${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} (${wd[d.getDay()]})`;
+    if(armedAt && !session){
+      const left=armedAt-now;
+      if(left<=0){ beginSession(false); return; }
+      const at=new Date(armedAt), h=Math.floor(left/3600000), m=Math.floor(left/60000)%60;
+      $('status').textContent=`${hhmm(at)} に鳴ります(あと ${h}時間${m}分)`;
+    }
+    if(session){
+      if(session.phase==='snooze'){
+        const left=session.nextAt-now;
+        if(left<=0){ ring(); }
+        else $('lead').textContent=`次のアラームまで ${pad(Math.floor(left/60000))}:${pad(Math.floor(left/1000)%60)}`;
+      }
+      if(!session.test && !checking && now-lastCheck>=POLL_MS) checkAC();
+    }
+  }
+
+  /* ---------- 起動時の復元 ---------- */
+  if(session && session.contest){
+    contest=session.contest;
+    if(session.phase==='ringing') ring(); else renderSession();
+  }else{
+    session=null; ls.del('session');
+  }
+  renderArmed(); tick(); setInterval(tick,500);
+  if(!$('maxC').value) refreshLatest();
+
+  /* ---------- PWA ---------- */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; $('install').hidden=false; });
+  $('installBtn').addEventListener('click',async()=>{
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt(); try{ await deferredPrompt.userChoice }catch(e){}
+    deferredPrompt=null; $('install').hidden=true;
+  });
+  window.addEventListener('appinstalled',()=>{ $('install').hidden=true; });
+  const standalone=window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+  const ios=/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  if(ios && !standalone) $('iosHint').hidden=false;
+})();
+</script>
+</body>
+</html>
