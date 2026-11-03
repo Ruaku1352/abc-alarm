@@ -1,4 +1,4 @@
-const CACHE = 'abc-alarm-v2';
+const CACHE = 'abc-alarm-v3';
 const FONT_CACHE = 'abc-alarm-fonts-v1';
 const ASSETS = [
   './',
@@ -27,7 +27,23 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // 自サイトのファイル: キャッシュ優先、裏で更新
+  // ページ本体: ネット優先(更新をすぐ反映)、圏外ならキャッシュ
+  if (url.origin === self.location.origin && req.mode === 'navigate') {
+    e.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        try {
+          const res = await fetch(req, { cache: 'no-store' });
+          if (res && res.ok) cache.put('./', res.clone());
+          return res;
+        } catch (err) {
+          return (await cache.match(req, { ignoreSearch: true })) || (await cache.match('./'));
+        }
+      })
+    );
+    return;
+  }
+
+  // 自サイトのその他のファイル: キャッシュ優先、裏で更新
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.open(CACHE).then(async (cache) => {

@@ -105,6 +105,11 @@ button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{
 .ring .btn.ghost{color:var(--ring-fg);border-color:#ffffff44}
 .ring .stop{background:var(--ring-fg);color:var(--ring-bg)}
 .small{font-size:12px;opacity:.7;text-align:center}
+.force{position:relative;overflow:hidden;background:transparent;color:#ffffffbb;border:1px dashed #ffffff55;font-size:14px;padding:12px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+.force::before{content:"";position:absolute;inset:0;background:#ff7a3d55;transform-origin:left;transform:scaleX(var(--p,0))}
+.force span{position:relative}
+.force.holding{color:var(--ring-fg);border-style:solid;border-color:var(--accent)}
 .done-mark{font-family:var(--display);font-weight:700;font-size:clamp(96px,32vw,150px);line-height:1;text-align:center;color:#4cc27e;margin-top:8vh}
 .done-msg{text-align:center;font-size:16px;line-height:1.8}
 </style>
@@ -199,6 +204,7 @@ button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{
       </div>
       <button class="btn stop" id="stop" type="button">止める(15分後にまた鳴ります)</button>
       <div class="small" id="ringNote">ACが反映されるまで数分かかります。解いたら待つだけで止まります。</div>
+      <button class="btn force" id="force" type="button"><span id="forceLabel">強制停止(3秒長押し)</span></button>
     </div>
     <div class="ring-done" id="ringDone" hidden>
       <div class="done-mark">AC</div>
@@ -491,8 +497,43 @@ button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{
     $('stop').textContent=session.test?'テストを終了':'止める(15分後にまた鳴ります)';
     $('acBox').hidden=!!session.test;
     $('ringNote').hidden=!!session.test;
+    $('force').hidden=!!session.test;
     showTask(); updateUnlockHints();
   }
+
+  /* ---------- 強制停止(3秒長押しでスヌーズごと終了) ---------- */
+  const HOLD_MS=3000;
+  let holdStart=0, holdRaf=0;
+  function holdFrame(){
+    const p=Math.min(1,(performance.now()-holdStart)/HOLD_MS);
+    $('force').style.setProperty('--p',p);
+    $('forceLabel').textContent=p<1?`そのまま押し続けて… ${Math.ceil((1-p)*HOLD_MS/1000)}`:'強制停止';
+    if(p>=1){ holdEnd(); forceStop(); return; }
+    holdRaf=requestAnimationFrame(holdFrame);
+  }
+  function holdBegin(e){
+    if(!session||holdStart) return;
+    if(e && e.cancelable) e.preventDefault();
+    holdStart=performance.now(); $('force').classList.add('holding');
+    holdRaf=requestAnimationFrame(holdFrame);
+  }
+  function holdEnd(){
+    cancelAnimationFrame(holdRaf); holdStart=0;
+    $('force').classList.remove('holding'); $('force').style.setProperty('--p',0);
+    $('forceLabel').textContent='強制停止(3秒長押し)';
+  }
+  function forceStop(){
+    if(!session) return;
+    endSession(); disarm();
+    $('ring').hidden=true;
+    $('status').textContent='強制停止しました';
+  }
+  $('force').addEventListener('pointerdown',holdBegin);
+  ['pointerup','pointercancel','pointerleave'].forEach(t=>$('force').addEventListener(t,()=>{ if(holdStart) holdEnd(); }));
+  $('force').addEventListener('contextmenu',e=>e.preventDefault());
+  $('force').addEventListener('keydown',e=>{ if((e.key===' '||e.key==='Enter') && !e.repeat){ e.preventDefault(); holdBegin(); } });
+  $('force').addEventListener('keyup',e=>{ if(e.key===' '||e.key==='Enter') holdEnd(); });
+  $('force').addEventListener('blur',()=>{ if(holdStart) holdEnd(); });
   $('stop').addEventListener('click',()=>{
     if(!session) return;
     if(session.test){ endSession(); $('ring').hidden=true; }
